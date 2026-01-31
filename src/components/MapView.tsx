@@ -1,25 +1,67 @@
 import { MapPin, Navigation } from "lucide-react";
-import { Restaurant } from "@/data/mockRestaurants";
+import { Restaurant } from "@/services/foursquareApi";
 import { cn } from "@/lib/utils";
 
 interface MapViewProps {
   restaurants: Restaurant[];
   selectedRestaurant?: Restaurant | null;
   onSelectRestaurant: (restaurant: Restaurant) => void;
+  userLocation?: { lat: number; lng: number } | null;
 }
 
-const MapView = ({ restaurants, selectedRestaurant, onSelectRestaurant }: MapViewProps) => {
-  // Mock map - positions are calculated relatively for demo
-  const getMarkerPosition = (restaurant: Restaurant, index: number) => {
-    // Distribute markers across the map area
-    const cols = 4;
-    const rows = 2;
-    const col = index % cols;
-    const row = Math.floor(index / cols);
+const MapView = ({ restaurants, selectedRestaurant, onSelectRestaurant, userLocation }: MapViewProps) => {
+  // Calculate marker positions based on actual coordinates
+  const getMarkerPosition = (restaurant: Restaurant) => {
+    if (!userLocation || restaurants.length === 0) {
+      return { left: "50%", top: "50%" };
+    }
+
+    // Calculate bounds
+    const lats = restaurants.map(r => r.coordinates.lat);
+    const lngs = restaurants.map(r => r.coordinates.lng);
     
+    const minLat = Math.min(...lats, userLocation.lat);
+    const maxLat = Math.max(...lats, userLocation.lat);
+    const minLng = Math.min(...lngs, userLocation.lng);
+    const maxLng = Math.max(...lngs, userLocation.lng);
+
+    const latRange = maxLat - minLat || 0.01;
+    const lngRange = maxLng - minLng || 0.01;
+
+    // Add padding
+    const padding = 0.15;
+    const left = padding + ((restaurant.coordinates.lng - minLng) / lngRange) * (1 - 2 * padding);
+    const top = padding + ((maxLat - restaurant.coordinates.lat) / latRange) * (1 - 2 * padding);
+
     return {
-      left: `${15 + col * 22}%`,
-      top: `${25 + row * 35}%`,
+      left: `${left * 100}%`,
+      top: `${top * 100}%`,
+    };
+  };
+
+  const getUserPosition = () => {
+    if (!userLocation || restaurants.length === 0) {
+      return { left: "50%", top: "50%" };
+    }
+
+    const lats = restaurants.map(r => r.coordinates.lat);
+    const lngs = restaurants.map(r => r.coordinates.lng);
+    
+    const minLat = Math.min(...lats, userLocation.lat);
+    const maxLat = Math.max(...lats, userLocation.lat);
+    const minLng = Math.min(...lngs, userLocation.lng);
+    const maxLng = Math.max(...lngs, userLocation.lng);
+
+    const latRange = maxLat - minLat || 0.01;
+    const lngRange = maxLng - minLng || 0.01;
+
+    const padding = 0.15;
+    const left = padding + ((userLocation.lng - minLng) / lngRange) * (1 - 2 * padding);
+    const top = padding + ((maxLat - userLocation.lat) / latRange) * (1 - 2 * padding);
+
+    return {
+      left: `${left * 100}%`,
+      top: `${top * 100}%`,
     };
   };
 
@@ -47,18 +89,23 @@ const MapView = ({ restaurants, selectedRestaurant, onSelectRestaurant }: MapVie
       </div>
       
       {/* User Location */}
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-        <div className="relative">
-          <div className="h-4 w-4 rounded-full bg-blue-500 shadow-lg">
-            <div className="absolute inset-0 animate-ping rounded-full bg-blue-500/50" />
+      {userLocation && (
+        <div 
+          className="absolute -translate-x-1/2 -translate-y-1/2 z-10"
+          style={getUserPosition()}
+        >
+          <div className="relative">
+            <div className="h-4 w-4 rounded-full bg-blue-500 shadow-lg">
+              <div className="absolute inset-0 animate-ping rounded-full bg-blue-500/50" />
+            </div>
+            <div className="absolute -inset-8 rounded-full border-2 border-dashed border-blue-300/50" />
           </div>
-          <div className="absolute -inset-8 rounded-full border-2 border-dashed border-blue-300/50" />
         </div>
-      </div>
+      )}
       
       {/* Restaurant Markers */}
-      {restaurants.map((restaurant, index) => {
-        const position = getMarkerPosition(restaurant, index);
+      {restaurants.map((restaurant) => {
+        const position = getMarkerPosition(restaurant);
         const isSelected = selectedRestaurant?.id === restaurant.id;
         
         return (
@@ -91,6 +138,13 @@ const MapView = ({ restaurants, selectedRestaurant, onSelectRestaurant }: MapVie
           </button>
         );
       })}
+      
+      {/* Empty State */}
+      {restaurants.length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <p className="text-muted-foreground">No restaurants to display</p>
+        </div>
+      )}
       
       {/* Map Controls */}
       <div className="absolute bottom-4 right-4 flex flex-col gap-2">

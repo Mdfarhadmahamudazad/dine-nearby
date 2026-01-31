@@ -1,6 +1,7 @@
-import { X, Star, MapPin, Clock, Phone, ExternalLink } from "lucide-react";
-import { Restaurant } from "@/data/mockRestaurants";
+import { X, Star, MapPin, Clock, ExternalLink } from "lucide-react";
+import { Restaurant } from "@/services/foursquareApi";
 import { Button } from "@/components/ui/button";
+import { useState } from "react";
 
 interface RestaurantDetailProps {
   restaurant: Restaurant;
@@ -8,7 +9,14 @@ interface RestaurantDetailProps {
 }
 
 const RestaurantDetail = ({ restaurant, onClose }: RestaurantDetailProps) => {
-  const priceDisplay = "$".repeat(restaurant.priceLevel);
+  const [imageError, setImageError] = useState(false);
+  const priceDisplay = "$".repeat(restaurant.priceLevel || 2);
+  const fallbackImage = "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80";
+
+  const handleGetDirections = () => {
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${restaurant.coordinates.lat},${restaurant.coordinates.lng}`;
+    window.open(url, "_blank");
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
@@ -24,9 +32,10 @@ const RestaurantDetail = ({ restaurant, onClose }: RestaurantDetailProps) => {
           {/* Image */}
           <div className="relative aspect-video">
             <img
-              src={restaurant.image}
+              src={imageError ? fallbackImage : restaurant.image}
               alt={restaurant.name}
               className="h-full w-full object-cover"
+              onError={() => setImageError(true)}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-foreground/60 via-transparent to-transparent" />
             
@@ -64,37 +73,32 @@ const RestaurantDetail = ({ restaurant, onClose }: RestaurantDetailProps) => {
                   {restaurant.cuisine} • {priceDisplay}
                 </p>
               </div>
-              <div className="flex items-center gap-1 rounded-xl bg-secondary px-3 py-2">
-                <Star className="h-5 w-5 fill-accent text-accent" />
-                <span className="text-lg font-bold">{restaurant.rating}</span>
-              </div>
+              {restaurant.rating > 0 && (
+                <div className="flex items-center gap-1 rounded-xl bg-secondary px-3 py-2">
+                  <Star className="h-5 w-5 fill-accent text-accent" />
+                  <span className="text-lg font-bold">{restaurant.rating.toFixed(1)}</span>
+                </div>
+              )}
             </div>
             
             <div className="space-y-3">
               <div className="flex items-center gap-3 text-muted-foreground">
-                <MapPin className="h-5 w-5 text-primary" />
-                <span>{restaurant.address} • {restaurant.distance} km away</span>
-              </div>
-              
-              <div className="flex items-center gap-3 text-muted-foreground">
-                <Phone className="h-5 w-5 text-primary" />
-                <span>+66 2 123 4567</span>
+                <MapPin className="h-5 w-5 shrink-0 text-primary" />
+                <span className="line-clamp-2">{restaurant.address} • {restaurant.distance} km away</span>
               </div>
             </div>
             
-            <div className="mt-4 rounded-xl bg-secondary/50 p-4">
-              <p className="text-sm text-muted-foreground">
-                <span className="font-semibold text-foreground">{restaurant.reviewCount}</span> reviews from happy customers
-              </p>
-            </div>
+            {restaurant.reviewCount > 0 && (
+              <div className="mt-4 rounded-xl bg-secondary/50 p-4">
+                <p className="text-sm text-muted-foreground">
+                  <span className="font-semibold text-foreground">{restaurant.reviewCount}</span> reviews from happy customers
+                </p>
+              </div>
+            )}
             
             {/* Actions */}
-            <div className="mt-6 flex gap-3">
-              <Button variant="outline" className="flex-1 gap-2">
-                <Phone className="h-4 w-4" />
-                Call
-              </Button>
-              <Button variant="hero" className="flex-1 gap-2">
+            <div className="mt-6">
+              <Button variant="hero" className="w-full gap-2" onClick={handleGetDirections}>
                 <ExternalLink className="h-4 w-4" />
                 Get Directions
               </Button>
